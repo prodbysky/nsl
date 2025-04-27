@@ -42,8 +42,6 @@ fn main() -> Result<(), NslError> {
         }
     };
 
-    dbg!(&tokens);
-
     let ast = match ast::Parser::new(&tokens).parse() {
         Ok(a) => a,
         Err(ast::Error { kind, span }) => {
@@ -64,8 +62,58 @@ fn main() -> Result<(), NslError> {
         }
     };
 
-    dbg!(ast);
+    let ir = codegen::generate_ir(&ast);
+
+    let ir_file_name = format!("{}.ssa", conf.output_name);
+    let asm_file_name = format!("{}.s", conf.output_name);
+
+    std::fs::write(&ir_file_name, &ir).unwrap();
+
+    if conf.dump_ir {
+        println!("{ir}");
+    }
+
+    std::process::Command::new("qbe")
+        .arg(&ir_file_name)
+        .arg("-o")
+        .arg(&asm_file_name)
+        .spawn()
+        .unwrap()
+        .wait()
+        .unwrap();
+
+    std::process::Command::new("gcc")
+        .arg(&asm_file_name)
+        .arg("-o")
+        .arg(conf.output_name)
+        .spawn()
+        .unwrap()
+        .wait()
+        .unwrap();
+
+    std::process::Command::new("rm")
+        .arg(ir_file_name)
+        .arg(asm_file_name)
+        .spawn()
+        .unwrap()
+        .wait()
+        .unwrap();
+
     Ok(())
+}
+
+mod codegen {
+    use crate::ast::Statement;
+    use qbe::{Function, Instr, Linkage, Module, Type, Value};
+
+    pub fn generate_ir(ast: &[Statement]) -> String {
+        let mut module = Module::new();
+        let mut main_func = Function::new(Linkage::public(), "main", vec![], Some(Type::Word));
+        main_func.add_block("start");
+        main_func.add_instr(Instr::Ret(Some(Value::Const(69))));
+        module.add_function(main_func);
+        module.to_string()
+    }
 }
 
 #[derive(Debug, Error)]
@@ -83,6 +131,13 @@ enum NslError {
 struct Config {
     #[arg()]
     input_name: String,
+
+    #[arg(short)]
+    output_name: String,
+
+    /// Dump the generated QBE IR
+    #[arg(short)]
+    dump_ir: bool,
 
     /// For serious developers only.
     #[arg(long)]

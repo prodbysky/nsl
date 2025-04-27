@@ -126,6 +126,7 @@ version = "0.1.0"
 dependencies = [
  "annotate-snippets",
  "clap",
+ "qbe",
  "thiserror",
 ]
 
@@ -143,6 +144,12 @@ checksum = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "qbe"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1ce54124980f3c530866c8145401764df3f0c428698f594ba8d634483af66e5"
 
 [[package]]
 name = "quote"
