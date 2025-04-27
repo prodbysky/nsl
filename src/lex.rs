@@ -1,10 +1,11 @@
-
 use std::ops::Range;
 pub type Span = Range<usize>;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenKind {
+    Semicolon,
     Number(u64),
     Operator(Operator),
+    Keyword(Keyword),
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Token {
@@ -16,6 +17,11 @@ pub struct Token {
 pub enum Operator {
     Plus,
     Any,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Keyword {
+    Return,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -56,6 +62,23 @@ impl<'lex> Lexer<'lex> {
                         kind: TokenKind::Operator(Operator::Plus),
                     });
                 }
+                c if c.is_ascii_alphabetic() || c == '_' => {
+                    let (ident, span) = self.ident();
+                    match ident {
+                        "return" => tokens.push(Token {
+                            span,
+                            kind: TokenKind::Keyword(Keyword::Return),
+                        }),
+                        _ => todo!("{}", ident),
+                    };
+                }
+                ';' => {
+                    self.next();
+                    tokens.push(Token {
+                        span: self.pos - 1..self.pos,
+                        kind: TokenKind::Semicolon,
+                    });
+                }
                 c => todo!("Unexpected char found: {c}"),
             }
         }
@@ -78,6 +101,18 @@ impl<'lex> Lexer<'lex> {
                 kind: TokenKind::Number(self.src[begin..end].parse().unwrap()),
             }),
         }
+    }
+
+    fn ident(&mut self) -> (&str, Span) {
+        let begin = self.pos;
+        while self
+            .peek()
+            .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            self.next();
+        }
+        let end = self.pos;
+        (&self.src[begin..end], begin..end)
     }
 
     fn skip_ws(&mut self) {

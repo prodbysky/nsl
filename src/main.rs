@@ -63,6 +63,8 @@ fn main() -> Result<(), NslError> {
             return Err(NslError::Ast);
         }
     };
+
+    dbg!(ast);
     Ok(())
 }
 
