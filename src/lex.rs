@@ -3,6 +3,7 @@ pub type Span = Range<usize>;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenKind<'source> {
     Semicolon,
+    Equal,
     Number(u64),
     Operator(Operator),
     Keyword(Keyword),
@@ -36,6 +37,7 @@ impl Operator {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Keyword {
     Return,
+    Let,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -97,12 +99,23 @@ impl<'source> Lexer<'source> {
                         kind: TokenKind::Operator(Operator::Slash),
                     });
                 }
+                '=' => {
+                    self.next();
+                    tokens.push(Token {
+                        span: self.pos - 1..self.pos,
+                        kind: TokenKind::Equal,
+                    });
+                }
                 c if c.is_ascii_alphabetic() || c == '_' => {
                     let (ident, span) = self.ident();
                     match ident {
                         "return" => tokens.push(Token {
                             span,
                             kind: TokenKind::Keyword(Keyword::Return),
+                        }),
+                        "let" => tokens.push(Token {
+                            span,
+                            kind: TokenKind::Keyword(Keyword::Let),
                         }),
                         other => tokens.push(Token {
                             span,

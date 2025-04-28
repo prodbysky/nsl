@@ -20,6 +20,14 @@ pub struct Expr<'source> {
 #[derive(Debug, PartialEq)]
 pub enum StatementKind<'source> {
     Return(Expr<'source>),
+    DefineVar {
+        name: &'source str,
+        value: Expr<'source>,
+    },
+    AssignVar {
+        name: &'source str,
+        value: Expr<'source>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -76,6 +84,33 @@ impl<'source> Parser<'source> {
                     kind: StatementKind::Return(value),
                 })
             }
+            Token {
+                span,
+                kind: TokenKind::Keyword(Keyword::Let),
+            } => {
+                self.next();
+                let name = self.expect_ident()?;
+                self.expect_equal()?;
+                let expr = self.parse_expr(0)?;
+                self.expect_semicolon()?;
+                Ok(Statement {
+                    span: span.start..expr.span.end,
+                    kind: StatementKind::DefineVar { name, value: expr },
+                })
+            }
+            Token {
+                span,
+                kind: TokenKind::Identifier(name),
+            } => {
+                self.next();
+                self.expect_equal()?;
+                let expr = self.parse_expr(0)?;
+                self.expect_semicolon()?;
+                Ok(Statement {
+                    span: span.start..expr.span.end,
+                    kind: StatementKind::AssignVar { name, value: expr },
+                })
+            }
             t => todo!("{t:?}"),
         }
     }
@@ -126,6 +161,16 @@ impl<'source> Parser<'source> {
                     kind: ExprKind::Number(n),
                 })
             }
+            Some(Token {
+                span,
+                kind: TokenKind::Identifier(name),
+            }) => {
+                self.next();
+                Ok(Expr {
+                    span: span.clone(),
+                    kind: ExprKind::VariableName(name),
+                })
+            }
             Some(Token { span, kind }) => Err(Error {
                 span: span.clone(),
                 kind: ErrorKind::UnexpectedToken {
@@ -154,6 +199,52 @@ impl<'source> Parser<'source> {
                 kind: ErrorKind::UnexpectedToken {
                     got: *kind,
                     expected: TokenKind::Semicolon,
+                },
+            }),
+            None => Err(Error {
+                span: self.prev_token_span(),
+                kind: ErrorKind::UnexpectedEOF,
+            }),
+        }
+    }
+
+    fn expect_equal(&mut self) -> ParseResult<'source, ()> {
+        match self.peek() {
+            Some(Token {
+                span: _,
+                kind: TokenKind::Equal,
+            }) => {
+                self.next();
+                Ok(())
+            }
+            Some(Token { span, kind }) => Err(Error {
+                span: span.clone(),
+                kind: ErrorKind::UnexpectedToken {
+                    got: *kind,
+                    expected: TokenKind::Equal,
+                },
+            }),
+            None => Err(Error {
+                span: self.prev_token_span(),
+                kind: ErrorKind::UnexpectedEOF,
+            }),
+        }
+    }
+
+    fn expect_ident(&mut self) -> ParseResult<'source, &'source str> {
+        match self.peek().cloned() {
+            Some(Token {
+                span: _,
+                kind: TokenKind::Identifier(id),
+            }) => {
+                self.next();
+                Ok(id)
+            }
+            Some(Token { span, kind }) => Err(Error {
+                span: span.clone(),
+                kind: ErrorKind::UnexpectedToken {
+                    got: kind,
+                    expected: TokenKind::Identifier("any"),
                 },
             }),
             None => Err(Error {

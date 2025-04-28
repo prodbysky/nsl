@@ -106,6 +106,7 @@ mod codegen {
     use crate::ast::{Expr, ExprKind, Statement, StatementKind};
     use crate::lex::Operator;
     use qbe::{Function, Instr, Linkage, Module, Type, Value};
+    use std::collections::HashMap;
 
     pub fn generate_ir(ast: &[Statement]) -> String {
         let mut module = Module::new();
@@ -113,6 +114,7 @@ mod codegen {
 
         let mut temp_count = 0;
 
+        let mut variables: HashMap<&str, Value> = HashMap::new();
         main_func.add_block("start");
 
         for st in ast {
@@ -121,9 +123,23 @@ mod codegen {
                     kind: StatementKind::Return(expr),
                     ..
                 } => {
-                    let result = eval_expr(&mut main_func, expr, &mut temp_count);
+                    let result = eval_expr(&mut main_func, expr, &mut temp_count, &variables);
                     main_func.add_instr(Instr::Ret(Some(result)));
                     return module.add_function(main_func).to_string();
+                }
+                Statement {
+                    kind: StatementKind::DefineVar { name, value },
+                    ..
+                } => {
+                    let value = eval_expr(&mut main_func, value, &mut temp_count, &variables);
+                    variables.insert(name, value);
+                }
+                Statement {
+                    kind: StatementKind::AssignVar { name, value },
+                    ..
+                } => {
+                    let value = eval_expr(&mut main_func, value, &mut temp_count, &variables);
+                    *variables.get_mut(name).unwrap() = value;
                 }
                 _ => todo!("Handle other statement types"),
             }
@@ -133,13 +149,18 @@ mod codegen {
         module.add_function(main_func).to_string()
     }
 
-    fn eval_expr(func: &mut Function, expr: &Expr, idx: &mut usize) -> Value {
+    fn eval_expr(
+        func: &mut Function,
+        expr: &Expr,
+        idx: &mut usize,
+        vars: &HashMap<&str, Value>,
+    ) -> Value {
         match &expr.kind {
             ExprKind::Number(v) => Value::Const(*v),
-            ExprKind::VariableName(name) => todo!(),
+            ExprKind::VariableName(name) => vars.get(name).unwrap().clone(),
             ExprKind::Binary { left, op, right } => {
-                let left = eval_expr(func, left, idx);
-                let right = eval_expr(func, right, idx);
+                let left = eval_expr(func, left, idx, vars);
+                let right = eval_expr(func, right, idx, vars);
 
                 *idx += 1;
                 let result_temporary = Value::Temporary(format!("t{idx}"));
