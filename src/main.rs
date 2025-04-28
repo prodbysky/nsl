@@ -105,7 +105,7 @@ fn main() -> Result<(), NslError> {
 mod codegen {
     use crate::ast::{Expr, ExprKind, Statement, StatementKind};
     use crate::lex::Operator;
-    use qbe::{Cmp, Function, Instr, Linkage, Module, Type, Value};
+    use qbe::{Block, Cmp, Function, Instr, Linkage, Module, Type, Value};
     use std::collections::HashMap;
 
     pub fn generate_ir(ast: &[Statement]) -> String {
@@ -158,23 +158,28 @@ mod codegen {
             } => {
                 let cond = eval_expr(func, cond, temp_count, vars);
 
+                let condition = Value::Temporary(format!("condition_{temp_count}"));
+
+                let then_label_name = format!("then_{temp_count}");
+                let merge_label_name = format!("merge_{temp_count}");
+
                 func.assign_instr(
-                    Value::Temporary("condition".to_string()),
+                    condition.clone(),
                     Type::Word,
                     Instr::Cmp(Type::Word, Cmp::Ne, cond, Value::Const(0)),
                 );
 
                 func.add_instr(Instr::Jnz(
-                    Value::Temporary("condition".to_string()),
-                    "then".to_string(),
-                    "merge".to_string(),
+                    condition,
+                    then_label_name.clone(),
+                    merge_label_name.clone(),
                 ));
 
-                let mut if_block = func.add_block("then");
+                let mut if_block = func.add_block(then_label_name);
                 for st in block {
                     generate_statement(func, st, temp_count, vars);
                 }
-                func.add_block("merge");
+                func.add_block(merge_label_name);
             }
 
             _ => todo!("Handle other statement types"),
