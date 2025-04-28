@@ -103,16 +103,58 @@ fn main() -> Result<(), NslError> {
 }
 
 mod codegen {
-    use crate::ast::Statement;
+    use crate::ast::{Expr, ExprKind, Statement, StatementKind};
+    use crate::lex::Operator;
     use qbe::{Function, Instr, Linkage, Module, Type, Value};
 
     pub fn generate_ir(ast: &[Statement]) -> String {
         let mut module = Module::new();
         let mut main_func = Function::new(Linkage::public(), "main", vec![], Some(Type::Word));
+
+        let mut temp_count = 0;
+
         main_func.add_block("start");
-        main_func.add_instr(Instr::Ret(Some(Value::Const(69))));
-        module.add_function(main_func);
-        module.to_string()
+
+        for st in ast {
+            match st {
+                Statement {
+                    kind: StatementKind::Return(expr),
+                    ..
+                } => {
+                    let result = eval_expr(&mut main_func, expr, &mut temp_count);
+                    main_func.add_instr(Instr::Ret(Some(result)));
+                    return module.add_function(main_func).to_string();
+                }
+                _ => todo!("Handle other statement types"),
+            }
+        }
+
+        main_func.add_instr(Instr::Ret(Some(Value::Const(0))));
+        module.add_function(main_func).to_string()
+    }
+
+    fn eval_expr(func: &mut Function, expr: &Expr, idx: &mut usize) -> Value {
+        match &expr.kind {
+            ExprKind::Number(v) => Value::Const(*v),
+            ExprKind::Binary { left, op, right } => {
+                let left = eval_expr(func, left, idx);
+                let right = eval_expr(func, right, idx);
+
+                *idx += 1;
+                let result_temporary = Value::Temporary(format!("t{idx}"));
+
+                let operation_instruction = match op {
+                    Operator::Plus => Instr::Add(left, right),
+                    Operator::Any => unreachable!(),
+                };
+                func.assign_instr(
+                    Value::Temporary(format!("t{idx}")),
+                    Type::Word,
+                    operation_instruction,
+                );
+                result_temporary
+            }
+        }
     }
 }
 
@@ -136,7 +178,7 @@ struct Config {
     output_name: String,
 
     /// Dump the generated QBE IR
-    #[arg(short)]
+    #[arg(long)]
     dump_ir: bool,
 
     /// For serious developers only.

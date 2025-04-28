@@ -12,8 +12,8 @@ pub enum ExprKind {
 
 #[derive(Debug, PartialEq)]
 pub struct Expr {
-    kind: ExprKind,
-    span: Span,
+    pub kind: ExprKind,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq)]
@@ -23,8 +23,8 @@ pub enum StatementKind {
 
 #[derive(Debug, PartialEq)]
 pub struct Statement {
-    kind: StatementKind,
-    span: Span,
+    pub kind: StatementKind,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq)]
