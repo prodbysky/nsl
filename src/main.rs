@@ -105,7 +105,7 @@ fn main() -> Result<(), NslError> {
 mod codegen {
     use crate::ast::{Expr, ExprKind, Statement, StatementKind};
     use crate::lex::Operator;
-    use qbe::{Block, Cmp, Function, Instr, Linkage, Module, Type, Value};
+    use qbe::{Cmp, Function, Instr, Linkage, Module, Type, Value};
     use std::collections::HashMap;
 
     pub fn generate_ir(ast: &[Statement]) -> String {
@@ -175,7 +175,7 @@ mod codegen {
                     merge_label_name.clone(),
                 ));
 
-                let mut if_block = func.add_block(then_label_name);
+                func.add_block(then_label_name);
                 for st in block {
                     generate_statement(func, st, temp_count, vars);
                 }
