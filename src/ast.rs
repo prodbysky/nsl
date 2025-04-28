@@ -82,7 +82,7 @@ impl<'source> Parser<'source> {
             } => {
                 self.next();
                 let value = self.parse_expr(0)?;
-                self.expect_semicolon()?;
+                self.expect_basic_token_kind(TokenKind::Semicolon)?;
                 Ok(Statement {
                     span: span.start..value.span.end,
                     kind: StatementKind::Return(value),
@@ -94,9 +94,9 @@ impl<'source> Parser<'source> {
             } => {
                 self.next();
                 let name = self.expect_ident()?;
-                self.expect_equal()?;
+                self.expect_basic_token_kind(TokenKind::Equal)?;
                 let expr = self.parse_expr(0)?;
-                self.expect_semicolon()?;
+                self.expect_basic_token_kind(TokenKind::Semicolon)?;
                 Ok(Statement {
                     span: span.start..expr.span.end,
                     kind: StatementKind::DefineVar { name, value: expr },
@@ -108,7 +108,7 @@ impl<'source> Parser<'source> {
             } => {
                 self.next();
                 let cond = self.parse_expr(0)?;
-                self.expect_open_curly()?;
+                self.expect_basic_token_kind(TokenKind::OpenCurly)?;
 
                 let mut body = vec![];
 
@@ -116,7 +116,7 @@ impl<'source> Parser<'source> {
                     body.push(self.parse_statement()?);
                 }
 
-                self.expect_close_curly()?;
+                self.expect_basic_token_kind(TokenKind::CloseCurly)?;
 
                 Ok(Statement {
                     span: span.clone(),
@@ -128,9 +128,9 @@ impl<'source> Parser<'source> {
                 kind: TokenKind::Identifier(name),
             } => {
                 self.next();
-                self.expect_equal()?;
+                self.expect_basic_token_kind(TokenKind::Equal)?;
                 let expr = self.parse_expr(0)?;
-                self.expect_semicolon()?;
+                self.expect_basic_token_kind(TokenKind::Semicolon)?;
                 Ok(Statement {
                     span: span.start..expr.span.end,
                     kind: StatementKind::AssignVar { name, value: expr },
@@ -209,13 +209,12 @@ impl<'source> Parser<'source> {
     fn prev_token_span(&self) -> Span {
         self.tokens[self.pos - 1].span.clone()
     }
-
-    fn expect_semicolon(&mut self) -> ParseResult<'source, ()> {
+    fn expect_basic_token_kind(
+        &mut self,
+        expected: TokenKind<'source>,
+    ) -> ParseResult<'source, ()> {
         match self.peek() {
-            Some(Token {
-                span: _,
-                kind: TokenKind::Semicolon,
-            }) => {
+            Some(Token { span: _, kind }) if *kind == expected => {
                 self.next();
                 Ok(())
             }
@@ -223,76 +222,7 @@ impl<'source> Parser<'source> {
                 span: span.clone(),
                 kind: ErrorKind::UnexpectedToken {
                     got: *kind,
-                    expected: TokenKind::Semicolon,
-                },
-            }),
-            None => Err(Error {
-                span: self.prev_token_span(),
-                kind: ErrorKind::UnexpectedEOF,
-            }),
-        }
-    }
-
-    fn expect_equal(&mut self) -> ParseResult<'source, ()> {
-        match self.peek() {
-            Some(Token {
-                span: _,
-                kind: TokenKind::Equal,
-            }) => {
-                self.next();
-                Ok(())
-            }
-            Some(Token { span, kind }) => Err(Error {
-                span: span.clone(),
-                kind: ErrorKind::UnexpectedToken {
-                    got: *kind,
-                    expected: TokenKind::Equal,
-                },
-            }),
-            None => Err(Error {
-                span: self.prev_token_span(),
-                kind: ErrorKind::UnexpectedEOF,
-            }),
-        }
-    }
-
-    fn expect_open_curly(&mut self) -> ParseResult<'source, ()> {
-        match self.peek() {
-            Some(Token {
-                span: _,
-                kind: TokenKind::OpenCurly,
-            }) => {
-                self.next();
-                Ok(())
-            }
-            Some(Token { span, kind }) => Err(Error {
-                span: span.clone(),
-                kind: ErrorKind::UnexpectedToken {
-                    got: *kind,
-                    expected: TokenKind::OpenCurly,
-                },
-            }),
-            None => Err(Error {
-                span: self.prev_token_span(),
-                kind: ErrorKind::UnexpectedEOF,
-            }),
-        }
-    }
-
-    fn expect_close_curly(&mut self) -> ParseResult<'source, ()> {
-        match self.peek() {
-            Some(Token {
-                span: _,
-                kind: TokenKind::CloseCurly,
-            }) => {
-                self.next();
-                Ok(())
-            }
-            Some(Token { span, kind }) => Err(Error {
-                span: span.clone(),
-                kind: ErrorKind::UnexpectedToken {
-                    got: *kind,
-                    expected: TokenKind::CloseCurly,
+                    expected,
                 },
             }),
             None => Err(Error {

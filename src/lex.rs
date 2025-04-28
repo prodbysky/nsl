@@ -64,6 +64,15 @@ impl<'source> Lexer<'source> {
     pub fn new(src: &'source str) -> Self {
         Self { src, pos: 0 }
     }
+
+    fn parse_single_char_op(&mut self, kind: TokenKind<'source>) -> Token<'source> {
+        self.next();
+        Token {
+            span: self.pos - 1..self.pos,
+            kind,
+        }
+    }
+
     pub fn lex(mut self) -> LexResult<Vec<Token<'source>>> {
         let mut tokens = vec![];
         while !self.done() {
@@ -75,54 +84,28 @@ impl<'source> Lexer<'source> {
             match self.peek().unwrap() {
                 c if c.is_ascii_digit() => tokens.push(self.number()?),
                 '+' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::Operator(Operator::Plus),
-                    });
+                    tokens.push(self.parse_single_char_op(TokenKind::Operator(Operator::Plus)));
                 }
                 '-' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::Operator(Operator::Minus),
-                    });
+                    tokens.push(self.parse_single_char_op(TokenKind::Operator(Operator::Minus)));
                 }
                 '*' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::Operator(Operator::Star),
-                    });
+                    tokens.push(self.parse_single_char_op(TokenKind::Operator(Operator::Star)));
                 }
                 '/' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::Operator(Operator::Slash),
-                    });
+                    tokens.push(self.parse_single_char_op(TokenKind::Operator(Operator::Slash)));
                 }
                 '=' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::Equal,
-                    });
+                    tokens.push(self.parse_single_char_op(TokenKind::Equal));
                 }
-
                 '{' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::OpenCurly,
-                    });
+                    tokens.push(self.parse_single_char_op(TokenKind::OpenCurly));
                 }
                 '}' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::CloseCurly,
-                    });
+                    tokens.push(self.parse_single_char_op(TokenKind::CloseCurly));
+                }
+                ';' => {
+                    tokens.push(self.parse_single_char_op(TokenKind::Semicolon));
                 }
                 c if c.is_ascii_alphabetic() || c == '_' => {
                     let (ident, span) = self.ident();
@@ -144,13 +127,6 @@ impl<'source> Lexer<'source> {
                             kind: TokenKind::Identifier(other),
                         }),
                     };
-                }
-                ';' => {
-                    self.next();
-                    tokens.push(Token {
-                        span: self.pos - 1..self.pos,
-                        kind: TokenKind::Semicolon,
-                    });
                 }
                 c => todo!("Unexpected char found: {c}"),
             }
