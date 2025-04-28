@@ -136,6 +136,7 @@ mod codegen {
     fn eval_expr(func: &mut Function, expr: &Expr, idx: &mut usize) -> Value {
         match &expr.kind {
             ExprKind::Number(v) => Value::Const(*v),
+            ExprKind::VariableName(name) => todo!(),
             ExprKind::Binary { left, op, right } => {
                 let left = eval_expr(func, left, idx);
                 let right = eval_expr(func, right, idx);

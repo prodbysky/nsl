@@ -1,16 +1,17 @@
 use std::ops::Range;
 pub type Span = Range<usize>;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum TokenKind {
+pub enum TokenKind<'source> {
     Semicolon,
     Number(u64),
     Operator(Operator),
     Keyword(Keyword),
+    Identifier(&'source str),
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Token {
+pub struct Token<'source> {
     pub span: Span,
-    pub kind: TokenKind,
+    pub kind: TokenKind<'source>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -49,16 +50,16 @@ pub enum ErrorKind {
 
 pub type LexResult<T> = Result<T, Error>;
 
-pub struct Lexer<'lex> {
-    src: &'lex str,
+pub struct Lexer<'source> {
+    src: &'source str,
     pos: usize,
 }
 
-impl<'lex> Lexer<'lex> {
-    pub fn new(src: &'lex str) -> Self {
+impl<'source> Lexer<'source> {
+    pub fn new(src: &'source str) -> Self {
         Self { src, pos: 0 }
     }
-    pub fn lex(mut self) -> LexResult<Vec<Token>> {
+    pub fn lex(mut self) -> LexResult<Vec<Token<'source>>> {
         let mut tokens = vec![];
         while !self.done() {
             self.skip_ws();
@@ -103,7 +104,10 @@ impl<'lex> Lexer<'lex> {
                             span,
                             kind: TokenKind::Keyword(Keyword::Return),
                         }),
-                        _ => todo!("{}", ident),
+                        other => tokens.push(Token {
+                            span,
+                            kind: TokenKind::Identifier(other),
+                        }),
                     };
                 }
                 ';' => {
@@ -119,7 +123,7 @@ impl<'lex> Lexer<'lex> {
         Ok(tokens)
     }
 
-    fn number(&mut self) -> LexResult<Token> {
+    fn number(&mut self) -> LexResult<Token<'source>> {
         let begin = self.pos;
         while self.peek().is_some_and(|c| c.is_ascii_digit()) {
             self.next();
@@ -137,7 +141,7 @@ impl<'lex> Lexer<'lex> {
         }
     }
 
-    fn ident(&mut self) -> (&str, Span) {
+    fn ident(&mut self) -> (&'source str, Span) {
         let begin = self.pos;
         while self
             .peek()

@@ -1,56 +1,60 @@
 use crate::lex::{Keyword, Operator, Span, Token, TokenKind};
 
 #[derive(Debug, PartialEq)]
-pub enum ExprKind {
+pub enum ExprKind<'source> {
     Number(u64),
+    VariableName(&'source str),
     Binary {
-        left: Box<Expr>,
+        left: Box<Expr<'source>>,
         op: Operator,
-        right: Box<Expr>,
+        right: Box<Expr<'source>>,
     },
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Expr {
-    pub kind: ExprKind,
+pub struct Expr<'source> {
+    pub kind: ExprKind<'source>,
     pub span: Span,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum StatementKind {
-    Return(Expr),
+pub enum StatementKind<'source> {
+    Return(Expr<'source>),
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Statement {
-    pub kind: StatementKind,
+pub struct Statement<'source> {
+    pub kind: StatementKind<'source>,
     pub span: Span,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ErrorKind {
+pub enum ErrorKind<'source> {
     UnexpectedEOF,
-    UnexpectedToken { got: TokenKind, expected: TokenKind },
+    UnexpectedToken {
+        got: TokenKind<'source>,
+        expected: TokenKind<'source>,
+    },
 }
 #[derive(Debug, PartialEq)]
-pub struct Error {
-    pub kind: ErrorKind,
+pub struct Error<'source> {
+    pub kind: ErrorKind<'source>,
     pub span: Span,
 }
 
-pub type ParseResult<T> = Result<T, Error>;
+pub type ParseResult<'source, T> = Result<T, Error<'source>>;
 
-pub struct Parser<'parser> {
-    tokens: &'parser [Token],
+pub struct Parser<'source> {
+    tokens: &'source [Token<'source>],
     pos: usize,
 }
 
-impl<'parser> Parser<'parser> {
-    pub fn new(tokens: &'parser [Token]) -> Self {
+impl<'source> Parser<'source> {
+    pub fn new(tokens: &'source [Token]) -> Self {
         Self { tokens, pos: 0 }
     }
 
-    pub fn parse(mut self) -> ParseResult<Vec<Statement>> {
+    pub fn parse(mut self) -> ParseResult<'source, Vec<Statement<'source>>> {
         let mut stmts = vec![];
         while !self.finished() {
             stmts.push(self.parse_statement()?);
@@ -58,7 +62,7 @@ impl<'parser> Parser<'parser> {
         Ok(stmts)
     }
 
-    fn parse_statement(&mut self) -> ParseResult<Statement> {
+    fn parse_statement(&mut self) -> ParseResult<'source, Statement<'source>> {
         match self.peek().unwrap().clone() {
             Token {
                 span,
@@ -76,7 +80,7 @@ impl<'parser> Parser<'parser> {
         }
     }
 
-    fn parse_expr(&mut self, min_prec: u8) -> ParseResult<Expr> {
+    fn parse_expr(&mut self, min_prec: u8) -> ParseResult<'source, Expr<'source>> {
         let mut left = self.parse_primary()?;
 
         while let Some(op_token) = self.peek() {
@@ -106,7 +110,7 @@ impl<'parser> Parser<'parser> {
         Ok(left)
     }
 
-    fn parse_primary(&mut self) -> ParseResult<Expr> {
+    fn parse_primary(&mut self) -> ParseResult<'source, Expr<'source>> {
         match self.peek().cloned() {
             None => Err(Error {
                 kind: ErrorKind::UnexpectedEOF,
@@ -136,7 +140,7 @@ impl<'parser> Parser<'parser> {
         self.tokens[self.pos - 1].span.clone()
     }
 
-    fn expect_semicolon(&mut self) -> ParseResult<()> {
+    fn expect_semicolon(&mut self) -> ParseResult<'source, ()> {
         match self.peek() {
             Some(Token {
                 span: _,
@@ -159,10 +163,10 @@ impl<'parser> Parser<'parser> {
         }
     }
 
-    fn peek(&self) -> Option<&Token> {
+    fn peek(&self) -> Option<&Token<'source>> {
         self.tokens.get(self.pos)
     }
-    fn next(&mut self) -> Option<&Token> {
+    fn next(&mut self) -> Option<&Token<'source>> {
         let t = self.tokens.get(self.pos);
         self.pos += 1;
         t
