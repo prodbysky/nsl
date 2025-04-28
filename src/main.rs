@@ -105,7 +105,7 @@ fn main() -> Result<(), NslError> {
 mod codegen {
     use crate::ast::{Expr, ExprKind, Statement, StatementKind};
     use crate::lex::Operator;
-    use qbe::{Function, Instr, Linkage, Module, Type, Value};
+    use qbe::{Cmp, Function, Instr, Linkage, Module, Type, Value};
     use std::collections::HashMap;
 
     pub fn generate_ir(ast: &[Statement]) -> String {
@@ -114,50 +114,82 @@ mod codegen {
 
         let mut temp_count = 0;
 
-        let mut variables: HashMap<&str, Value> = HashMap::new();
+        let mut variables: HashMap<String, Value> = HashMap::new();
         main_func.add_block("start");
 
         for st in ast {
-            match st {
-                Statement {
-                    kind: StatementKind::Return(expr),
-                    ..
-                } => {
-                    let result = eval_expr(&mut main_func, expr, &mut temp_count, &variables);
-                    main_func.add_instr(Instr::Ret(Some(result)));
-                    return module.add_function(main_func).to_string();
-                }
-                Statement {
-                    kind: StatementKind::DefineVar { name, value },
-                    ..
-                } => {
-                    let value = eval_expr(&mut main_func, value, &mut temp_count, &variables);
-                    variables.insert(name, value);
-                }
-                Statement {
-                    kind: StatementKind::AssignVar { name, value },
-                    ..
-                } => {
-                    let value = eval_expr(&mut main_func, value, &mut temp_count, &variables);
-                    *variables.get_mut(name).unwrap() = value;
-                }
-                _ => todo!("Handle other statement types"),
-            }
+            generate_statement(&mut main_func, st, &mut temp_count, &mut variables);
         }
 
-        main_func.add_instr(Instr::Ret(Some(Value::Const(0))));
         module.add_function(main_func).to_string()
+    }
+
+    fn generate_statement(
+        func: &mut Function,
+        st: &Statement,
+        temp_count: &mut usize,
+        vars: &mut HashMap<String, Value>,
+    ) {
+        match st {
+            Statement {
+                kind: StatementKind::Return(expr),
+                ..
+            } => {
+                let result = eval_expr(func, expr, temp_count, vars);
+                func.add_instr(Instr::Ret(Some(result)));
+            }
+            Statement {
+                kind: StatementKind::DefineVar { name, value },
+                ..
+            } => {
+                let value = eval_expr(func, value, temp_count, vars);
+                vars.insert((*name).to_string(), value);
+            }
+            Statement {
+                kind: StatementKind::AssignVar { name, value },
+                ..
+            } => {
+                let value = eval_expr(func, value, temp_count, vars);
+                *vars.get_mut(&(*name).to_string()).unwrap() = value;
+            }
+            Statement {
+                kind: StatementKind::If { cond, block },
+                ..
+            } => {
+                let cond = eval_expr(func, cond, temp_count, vars);
+
+                func.assign_instr(
+                    Value::Temporary("condition".to_string()),
+                    Type::Word,
+                    Instr::Cmp(Type::Word, Cmp::Ne, cond, Value::Const(0)),
+                );
+
+                func.add_instr(Instr::Jnz(
+                    Value::Temporary("condition".to_string()),
+                    "then".to_string(),
+                    "merge".to_string(),
+                ));
+
+                let mut if_block = func.add_block("then");
+                for st in block {
+                    generate_statement(func, st, temp_count, vars);
+                }
+                func.add_block("merge");
+            }
+
+            _ => todo!("Handle other statement types"),
+        }
     }
 
     fn eval_expr(
         func: &mut Function,
         expr: &Expr,
         idx: &mut usize,
-        vars: &HashMap<&str, Value>,
+        vars: &HashMap<String, Value>,
     ) -> Value {
         match &expr.kind {
             ExprKind::Number(v) => Value::Const(*v),
-            ExprKind::VariableName(name) => vars.get(name).unwrap().clone(),
+            ExprKind::VariableName(name) => vars.get(&name.to_string()).unwrap().clone(),
             ExprKind::Binary { left, op, right } => {
                 let left = eval_expr(func, left, idx, vars);
                 let right = eval_expr(func, right, idx, vars);
