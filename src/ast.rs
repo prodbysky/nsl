@@ -65,7 +65,7 @@ impl<'parser> Parser<'parser> {
                 kind: TokenKind::Keyword(Keyword::Return),
             } => {
                 self.next();
-                let value = self.parse_expr()?;
+                let value = self.parse_expr(0)?;
                 self.expect_semicolon()?;
                 Ok(Statement {
                     span: span.start..value.span.end,
@@ -76,20 +76,31 @@ impl<'parser> Parser<'parser> {
         }
     }
 
-    fn parse_expr(&mut self) -> ParseResult<Expr> {
+    fn parse_expr(&mut self, min_prec: u8) -> ParseResult<Expr> {
         let mut left = self.parse_primary()?;
 
-        while let Some(op) = self.parse_operator()? {
-            let right = self.parse_primary()?;
-            let span = left.span.start..right.span.end;
-            left = Expr {
-                span,
-                kind: ExprKind::Binary {
-                    left: Box::new(left),
-                    op,
-                    right: Box::new(right),
-                },
-            };
+        while let Some(op_token) = self.peek() {
+            if let TokenKind::Operator(op) = op_token.kind {
+                let prec = op.prec();
+                if prec < min_prec {
+                    break;
+                }
+
+                self.next();
+
+                let right = self.parse_expr(prec + 1)?;
+                let span = left.span.start..right.span.end;
+                left = Expr {
+                    span,
+                    kind: ExprKind::Binary {
+                        left: Box::new(left),
+                        op,
+                        right: Box::new(right),
+                    },
+                };
+            } else {
+                break;
+            }
         }
 
         Ok(left)
@@ -123,20 +134,6 @@ impl<'parser> Parser<'parser> {
 
     fn prev_token_span(&self) -> Span {
         self.tokens[self.pos - 1].span.clone()
-    }
-
-    fn parse_operator(&mut self) -> ParseResult<Option<Operator>> {
-        match self.peek() {
-            Some(Token {
-                span,
-                kind: TokenKind::Operator(op),
-            }) => {
-                let op = *op;
-                self.next();
-                Ok(Some(op))
-            }
-            Some(_) | None => Ok(None),
-        }
     }
 
     fn expect_semicolon(&mut self) -> ParseResult<()> {

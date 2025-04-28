@@ -16,7 +16,20 @@ pub struct Token {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Operator {
     Plus,
+    Minus,
+    Star,
+    Slash,
     Any,
+}
+
+impl Operator {
+    pub fn prec(self) -> u8 {
+        match self {
+            Operator::Plus | Operator::Minus => 1,
+            Operator::Star | Operator::Slash => 2,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -60,6 +73,27 @@ impl<'lex> Lexer<'lex> {
                     tokens.push(Token {
                         span: self.pos - 1..self.pos,
                         kind: TokenKind::Operator(Operator::Plus),
+                    });
+                }
+                '-' => {
+                    self.next();
+                    tokens.push(Token {
+                        span: self.pos - 1..self.pos,
+                        kind: TokenKind::Operator(Operator::Minus),
+                    });
+                }
+                '*' => {
+                    self.next();
+                    tokens.push(Token {
+                        span: self.pos - 1..self.pos,
+                        kind: TokenKind::Operator(Operator::Star),
+                    });
+                }
+                '/' => {
+                    self.next();
+                    tokens.push(Token {
+                        span: self.pos - 1..self.pos,
+                        kind: TokenKind::Operator(Operator::Slash),
                     });
                 }
                 c if c.is_ascii_alphabetic() || c == '_' => {

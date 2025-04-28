@@ -145,7 +145,10 @@ mod codegen {
 
                 let operation_instruction = match op {
                     Operator::Plus => Instr::Add(left, right),
-                    Operator::Any => unreachable!(),
+                    Operator::Minus => Instr::Sub(left, right),
+                    Operator::Star => Instr::Mul(left, right),
+                    Operator::Slash => Instr::Div(left, right),
+                    _ => unreachable!(),
                 };
                 func.assign_instr(
                     Value::Temporary(format!("t{idx}")),
