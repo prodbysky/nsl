@@ -32,6 +32,10 @@ pub enum StatementKind<'source> {
         cond: Expr<'source>,
         block: Vec<Statement<'source>>,
     },
+    While {
+        cond: Expr<'source>,
+        block: Vec<Statement<'source>>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -121,6 +125,27 @@ impl<'source> Parser<'source> {
                 Ok(Statement {
                     span: span.clone(),
                     kind: StatementKind::If { cond, block: body },
+                })
+            }
+            Token {
+                span,
+                kind: TokenKind::Keyword(Keyword::While),
+            } => {
+                self.next();
+                let cond = self.parse_expr(0)?;
+                self.expect_basic_token_kind(TokenKind::OpenCurly)?;
+
+                let mut body = vec![];
+
+                while self.peek().is_some_and(|t| t.kind != TokenKind::CloseCurly) {
+                    body.push(self.parse_statement()?);
+                }
+
+                self.expect_basic_token_kind(TokenKind::CloseCurly)?;
+
+                Ok(Statement {
+                    span: span.clone(),
+                    kind: StatementKind::While { cond, block: body },
                 })
             }
             Token {

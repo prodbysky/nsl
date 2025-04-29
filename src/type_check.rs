@@ -107,7 +107,7 @@ impl<'source> TypeChecker<'source> {
                     });
                 }
             }
-            StatementKind::If { cond, block } => {
+            StatementKind::If { cond, block } | StatementKind::While { cond, block } => {
                 let typed_cond = self.check_expr(cond);
                 if typed_cond.ty != Type::Bool && typed_cond.ty != Type::Error {
                     self.errors.push(TypeError {

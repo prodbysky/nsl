@@ -44,6 +44,7 @@ pub enum Keyword {
     Return,
     Let,
     If,
+    While,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -130,6 +131,10 @@ impl<'source> Lexer<'source> {
                         "if" => tokens.push(Token {
                             span,
                             kind: TokenKind::Keyword(Keyword::If),
+                        }),
+                        "while" => tokens.push(Token {
+                            span,
+                            kind: TokenKind::Keyword(Keyword::While),
                         }),
                         other => tokens.push(Token {
                             span,

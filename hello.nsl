@@ -1,6 +1,6 @@
-let a = 5 > 2;
+let i = 0;
 
-if a {
-    return 69;
+while i < 2 {
+    i = i + 1;
 }
-return 420;
+return i;

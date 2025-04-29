@@ -1,4 +1,3 @@
-
 use crate::ast::{Expr, ExprKind, Statement, StatementKind};
 use crate::lex::Operator;
 use qbe::{Cmp, Function, Instr, Linkage, Module, Type, Value};
@@ -31,8 +30,12 @@ fn generate_statement(
             kind: StatementKind::Return(expr),
             ..
         } => {
-            let result = eval_expr(func, expr, temp_count, vars);
-            func.add_instr(Instr::Ret(Some(result)));
+            if let ExprKind::Number(v) = expr.kind {
+                func.add_instr(Instr::Ret(Some(Value::Const(v))));
+            } else {
+                let result = eval_expr(func, expr, temp_count, vars);
+                func.add_instr(Instr::Ret(Some(result)));
+            }
         }
         Statement {
             kind: StatementKind::DefineVar { name, value },
@@ -77,6 +80,34 @@ fn generate_statement(
             }
             func.add_block(merge_label_name);
         }
+        Statement {
+            kind: StatementKind::While { cond, block },
+            ..
+        } => {
+            let cond_label = format!("for_cond_{temp_count}");
+            let body_label = format!("for_body_{temp_count}");
+            let exit_label = format!("for_exit_{temp_count}");
+
+            func.add_instr(Instr::Jmp(cond_label.clone()));
+
+            func.add_block(cond_label.clone());
+            let cond_val = eval_expr(func, cond, temp_count, vars);
+            let cmp_temp = Value::Temporary(format!("t_cond_{temp_count}"));
+            func.assign_instr(
+                cmp_temp.clone(),
+                Type::Word,
+                Instr::Cmp(Type::Word, Cmp::Ne, cond_val, Value::Const(0)),
+            );
+            func.add_instr(Instr::Jnz(cmp_temp, body_label.clone(), exit_label.clone()));
+
+            func.add_block(body_label.clone());
+            for stmt in block {
+                generate_statement(func, stmt, temp_count, vars);
+            }
+            func.add_instr(Instr::Jmp(cond_label.clone()));
+
+            func.add_block(exit_label.clone());
+        }
 
         _ => todo!("Handle other statement types"),
     }
@@ -116,4 +147,3 @@ fn eval_expr(
         }
     }
 }
-
