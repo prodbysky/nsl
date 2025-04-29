@@ -1,6 +1,6 @@
 use crate::lex::{Keyword, Operator, Span, Token, TokenKind};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExprKind<'source> {
     Number(u64),
     VariableName(&'source str),
@@ -11,7 +11,7 @@ pub enum ExprKind<'source> {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Expr<'source> {
     pub kind: ExprKind<'source>,
     pub span: Span,

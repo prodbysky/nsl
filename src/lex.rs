@@ -23,12 +23,15 @@ pub enum Operator {
     Minus,
     Star,
     Slash,
+    More,
+    Less,
     Any,
 }
 
 impl Operator {
     pub fn prec(self) -> u8 {
         match self {
+            Operator::Less | Operator::More => 0,
             Operator::Plus | Operator::Minus => 1,
             Operator::Star | Operator::Slash => 2,
             _ => unreachable!(),
@@ -94,6 +97,12 @@ impl<'source> Lexer<'source> {
                 }
                 '/' => {
                     tokens.push(self.parse_single_char_op(TokenKind::Operator(Operator::Slash)));
+                }
+                '>' => {
+                    tokens.push(self.parse_single_char_op(TokenKind::Operator(Operator::More)));
+                }
+                '<' => {
+                    tokens.push(self.parse_single_char_op(TokenKind::Operator(Operator::Less)));
                 }
                 '=' => {
                     tokens.push(self.parse_single_char_op(TokenKind::Equal));

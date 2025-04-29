@@ -1,6 +1,7 @@
 use annotate_snippets::{Level, Renderer, Snippet};
 mod ast;
 mod lex;
+mod type_check;
 
 use clap::Parser;
 use thiserror::Error;
@@ -61,6 +62,36 @@ fn main() -> Result<(), NslError> {
             return Err(NslError::Ast);
         }
     };
+    let type_checker = type_check::TypeChecker::new();
+    let type_errors = type_checker.check(&ast);
+
+    if !type_errors.is_empty() {
+        for error in type_errors {
+            let title = match &error.kind {
+                type_check::TypeErrorKind::Mismatch { expected, got } => {
+                    format!("Type mismatch: expected {expected}, got {got}")
+                }
+                type_check::TypeErrorKind::Undefined(name) => {
+                    format!("Undefined variable: {name}")
+                }
+                type_check::TypeErrorKind::InvalidBinaryOp { left, op, right } => {
+                    format!("Invalid binary operation: {left} {op:?} {right}")
+                }
+                type_check::TypeErrorKind::InvalidCondition(ty) => {
+                    format!("Condition must be boolean, got {ty}")
+                }
+            };
+
+            let msg = Level::Error.title(&title).snippet(
+                Snippet::source(&source_code)
+                    .fold(true)
+                    .origin(&conf.input_name)
+                    .annotation(Level::Error.span(error.span).label("Type error")),
+            );
+            eprintln!("{}", error_renderer.render(msg));
+        }
+        return Err(NslError::Type);
+    }
 
     let ir = codegen::generate_ir(&ast);
 
@@ -207,6 +238,8 @@ mod codegen {
                     Operator::Minus => Instr::Sub(left, right),
                     Operator::Star => Instr::Mul(left, right),
                     Operator::Slash => Instr::Div(left, right),
+                    Operator::More => Instr::Cmp(Type::Word, Cmp::Sgt, left, right),
+                    Operator::Less => Instr::Cmp(Type::Word, Cmp::Slt, left, right),
                     _ => unreachable!(),
                 };
                 func.assign_instr(
@@ -228,6 +261,8 @@ enum NslError {
     Lex,
     #[error("Ast error")]
     Ast,
+    #[error("Type error")]
+    Type,
 }
 
 /// nsl Language compiler maybe????
