@@ -39,6 +39,7 @@ Uses gcc for linking (for early dev, later will use ld)
  - Type safety
  - Type annotations
  - Trait-like interfaces
+ - Dead code analysis for functions, structs, variables, constants
 
 ## Non-concerns for this language:
  - For now (maybe it will change later) this is not Rust, C, C++, it will not be as quick as those languages

@@ -28,7 +28,12 @@ fn lex<'source>(
     error_renderer: &Renderer,
     source_code: &'source str,
 ) -> Result<Vec<lex::Token<'source>>, NslError> {
-    let tokens = match lex::Lexer::new(source_code).lex() {
+    let lexer = lex::Lexer::new(source_code);
+
+    let before = std::time::Instant::now();
+    let tokens = lexer.lex();
+    println!("Tokenization took: {:.2?}", before.elapsed());
+    let tokens = match tokens {
         Ok(t) => t,
         Err(lex::Error { kind, span }) => {
             let title = match kind {
@@ -54,7 +59,11 @@ fn parse_ast<'source>(
     tokens: &'source [lex::Token<'source>],
     source_code: &'source str,
 ) -> Result<Vec<ast::Statement<'source>>, NslError> {
-    let ast = match ast::Parser::new(tokens).parse() {
+    let parser = ast::Parser::new(tokens);
+    let before = std::time::Instant::now();
+    let ast = parser.parse();
+    println!("Parsing the AST took: {:.2?}", before.elapsed());
+    let ast = match ast {
         Ok(a) => a,
         Err(ast::Error { kind, span }) => {
             let title = match kind {
@@ -83,7 +92,9 @@ fn check_types<'source>(
     source_code: &'source str,
 ) -> Result<(), NslError> {
     let type_checker = type_check::TypeChecker::new();
+    let before = std::time::Instant::now();
     let type_errors = type_checker.check(ast);
+    println!("Type check pass took: {:.2?}", before.elapsed());
 
     if !type_errors.is_empty() {
         for error in type_errors {
@@ -116,7 +127,9 @@ fn check_types<'source>(
 }
 
 fn compile(ast: &[ast::Statement], output: &str, dump_ir: bool) {
+    let before = std::time::Instant::now();
     let ir = codegen::generate_ir(ast);
+    println!("IR generation took: {:.2?}", before.elapsed());
 
     let ir_file_name = format!("{output}.ssa");
     let asm_file_name = format!("{output}.s");
