@@ -46,8 +46,6 @@ pub enum TypeErrorKind<'source> {
     InvalidCondition(Type),
 }
 
-pub type TypeCheckerResult<'source, T> = Result<T, TypeError<'source>>;
-
 pub struct TypeChecker<'source> {
     variables: HashMap<&'source str, Type>,
     errors: Vec<TypeError<'source>>,
