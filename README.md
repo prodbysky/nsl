@@ -4,16 +4,25 @@ So far you can define assign, and return values.
 Also you can do basic arithmetic (only integers for now)
 
 ## Examples
- - Full language (for now since it is pretty small)
-```nsl
-    let a = 5;
-    let b = a + 5;
+ - Calculating a fibonacci number:
+ ```nsl
+let a = 0;
+let b = 1;
 
-    if a < b {
-        return 1;
-    }
+let which = 10;
 
-    return 0;
+let i = 0;
+
+let result = 0;
+
+while i < which {
+    result = a + b;
+    b = a;
+    a = result;
+    i = i + 1;
+}
+
+return result;
 ```
 
 
